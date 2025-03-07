@@ -1,63 +1,62 @@
-import React, { useState, useEffect } from "react";
-import { db } from "./firebase"; // Configura Firebase
-import { collection, addDoc, onSnapshot } from "firebase/firestore";
+import { useState, useEffect } from "react";
+import { db } from "./firebaseConfig";
+import { collection, onSnapshot, addDoc, updateDoc, doc } from "firebase/firestore";
+import { Button, Input, Card, CardContent } from "@/components/ui";
 
-const Reception = () => {
-  const [patients, setPatients] = useState([]);
-  const [name, setName] = useState("");
-  const [reason, setReason] = useState("");
+export default function Urgencias() {
+  const [pacientes, setPacientes] = useState([]);
+  const [nombre, setNombre] = useState("");
+  const [categoria, setCategoria] = useState("Leve");
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "patients"), (snapshot) => {
-      setPatients(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    const unsubscribe = onSnapshot(collection(db, "pacientes"), (snapshot) => {
+      setPacientes(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
     return () => unsubscribe();
   }, []);
 
-  const addPatient = async () => {
-    if (name && reason) {
-      await addDoc(collection(db, "patients"), {
-        name,
-        reason,
-        status: "En espera"
-      });
-      setName("");
-      setReason("");
-    }
+  const agregarPaciente = async () => {
+    await addDoc(collection(db, "pacientes"), {
+      nombre,
+      categoria,
+      atendido: false,
+    });
+    setNombre("");
+  };
+
+  const atenderPaciente = async (id) => {
+    await updateDoc(doc(db, "pacientes", id), {
+      atendido: true,
+    });
   };
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Recepción de Pacientes</h1>
-      <input
-        type="text"
-        placeholder="Nombre del paciente"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="border p-2 rounded w-full mb-2"
-      />
-      <input
-        type="text"
-        placeholder="Motivo de consulta"
-        value={reason}
-        onChange={(e) => setReason(e.target.value)}
-        className="border p-2 rounded w-full mb-2"
-      />
-      <button onClick={addPatient} className="bg-blue-500 text-white p-2 rounded">
-        Agregar Paciente
-      </button>
-      <h2 className="text-xl font-semibold mt-4">Lista de Pacientes</h2>
-      <ul>
-        {patients.map((patient) => (
-          <li key={patient.id} className="border-b p-2">
-            {patient.name} - {patient.reason} ({patient.status})
-          </li>
+      <h1 className="text-2xl font-bold mb-4">Sistema de Urgencias</h1>
+      <div className="mb-4">
+        <Input placeholder="Nombre del paciente" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+        <select className="ml-2" onChange={(e) => setCategoria(e.target.value)}>
+          <option value="Leve">Leve</option>
+          <option value="Moderado">Moderado</option>
+          <option value="Grave">Grave</option>
+        </select>
+        <Button onClick={agregarPaciente} className="ml-2">Agregar</Button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {pacientes.map((pac) => (
+          <Card key={pac.id} className={pac.atendido ? "opacity-50" : ""}>
+            <CardContent>
+              <p className="text-lg font-semibold">{pac.nombre}</p>
+              <p className="text-sm">Categoría: {pac.categoria}</p>
+              {!pac.atendido && (
+                <Button className="mt-2" onClick={() => atenderPaciente(pac.id)}>Atender</Button>
+              )}
+            </CardContent>
+          </Card>
         ))}
-      </ul>
+      </div>
     </div>
   );
-};
-
-export default Reception;
+}
 
 
